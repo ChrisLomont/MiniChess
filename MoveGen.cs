@@ -13,35 +13,7 @@ class MoveGen
     // https://stackoverflow.com/questions/11365221/perft-test-results-cant-find-bug
     // todo implement perft on known positions, test those published
 
-    // testing of move generator
-    // from given position, computes nodes at depth d
-    // return count of nodes
-    // divide outputs nodes under each top level move
-    public static ulong Perft(State state, int depth, bool divide = false)
-    {
-        if (depth == 0)
-            return 1U;
-        ulong nodes = 0;
 
-        var moves = GenMoves(state);
-        Sort(moves);
-        if (depth == 1)
-            return (ulong)moves.Count;
-        foreach (var move in moves)
-        {
-            state.DoMove(move);
-            var count = Perft(state, depth - 1, false);;
-            nodes += count;
-            state.UndoMove();
-            
-            if (divide)
-                Console.WriteLine($"{Square.Name(move.r1,move.c1)}{Square.Name(move.r2,move.c2)}: {count}");
-        }
-        if (divide)
-            Console.WriteLine($"Nodes searched: {nodes}");
-
-        return nodes;
-    }
 
     // lexi sort moves
     // todo - add some other options, filter by capture, check, checkmate, promotion, etc

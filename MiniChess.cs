@@ -24,10 +24,13 @@ TODO:
 17. *set computer side(s)
 18. *show move list
 19. save/load move PGN
-20. * set computer move timer
+20. *set computer move timer
 21. move gen aware of draws, 50 move, etc..
 22. *have computer make one move
 23. bug - inf loops on cannot find move from enemy.. Pick rand and print error?
+24. *perft
+25. *perft testing
+26. bitboard gen
 
 */
 
@@ -112,7 +115,8 @@ class Chess
 
             Console.Write("Enter move (? for help): ");
             var rawText = Console.ReadLine();
-            var movetext = rawText.ToLower();
+            var movetext = rawText.ToLower();            
+            var words = rawText.Split(' ', Int32.MaxValue, StringSplitOptions.RemoveEmptyEntries);
 
             if (movetext == "") // handle empty case first
             {   
@@ -139,6 +143,11 @@ class Chess
                 done = true;
             else if (movetext == "n")
                 inGame = false;
+            else if (movetext.StartsWith("perft") && words.Length > 1 && Int32.TryParse(words[1],out var pdepth))
+            {
+                var st = new State();
+                Testing.Perft(st,pdepth);
+            }
             else if (State.TryParseFEN(rawText, out var s))
                 state = s;
             else if (movetext.StartsWith("test") && movetext.Length > 4)
@@ -213,6 +222,7 @@ class Chess
         Console.WriteLine($"Ds    - toggle continuous scroll");
         Console.WriteLine($"testn - run test #n");
         Console.WriteLine($"FEN   - any FEN position");
+        Console.WriteLine($"perft N - run perft on start position to depth N");
         Console.WriteLine($"      - (blank), play random move");
         Console.WriteLine($"mX    - X=w to have computer play white, b for black, 1 for one move, blank for neither");
         Editor.ShowHelp();

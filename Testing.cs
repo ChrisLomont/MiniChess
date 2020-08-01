@@ -17,6 +17,7 @@ This to test
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -149,10 +150,11 @@ class Testing
                         )
                     {
 
-                        if (depth > 6) break; // todo - allow
+                        if (depth > 5) break; // todo - allow
 
 
-                        var tested = MoveGen.Perft(state, depth);
+                        var pinfo = PerftCount(state, depth);
+                        var tested = pinfo.count;
                         if (tested != count)
                         {
                             Console.WriteLine($"ERROR: Me {tested} != Truth {count} depth {depth} FEN {words[0]}");
@@ -232,6 +234,62 @@ class Testing
                     state = s;
                 }
             }
+        }
+    }
+
+    public class PerftInfo
+    {
+        public ulong count;
+        public List<(Move, ulong)> divide = new List<(Move, ulong)>();
+        public int depth;
+    }
+
+    public static void Perft(State state, int depth)
+    {
+        DumpPerftInfo(PerftCount(state,depth));
+    }
+    public static void DumpPerftInfo(PerftInfo info)
+    {
+        Console.WriteLine($"perft {info.depth}");
+        foreach (var (m, c) in info.divide)
+            Console.WriteLine($"{Square.Name(m.r1, m.c1)}{Square.Name(m.r1, m.c1)}: {c}");
+        Console.WriteLine($"Nodes searched: {info.count}");
+    }
+
+    // testing of move generator
+    // from given position, computes nodes at depth d
+    // return count of nodes
+    // divide outputs nodes under each top level move
+    public static PerftInfo PerftCount(State state, int depth)
+    {
+        var info = new PerftInfo(){depth = depth};
+        info.count = PerftInner(state,depth,true);
+        return info;
+
+        ulong PerftInner(State state1, int depth, bool divide)
+        {
+            if (depth == 0)
+                return 1U;
+            ulong nodes = 0;
+
+            var moves = MoveGen.GenMoves(state);
+            if (divide) MoveGen.Sort(moves);
+            if (depth == 1)
+                return (ulong)moves.Count;
+            foreach (var move in moves)
+            {
+                state.DoMove(move);
+                var count = PerftInner(state, depth - 1, false);
+                nodes += count;
+                state.UndoMove();
+
+                if (divide)
+                    info.divide.Add((move,count));
+            }
+            if (divide)
+                Console.WriteLine($"Nodes searched: {nodes}");
+
+            return nodes;
         }
     }
 
