@@ -8,6 +8,98 @@ using System.Linq;
 
 class MoveGen
 {
+    // see perft samples at http://www.rocechess.ch/perft.html
+    // http://cinnamonchess.altervista.org/perft.html
+    // https://stackoverflow.com/questions/11365221/perft-test-results-cant-find-bug
+    // todo implement perft on known positions, test those published
+
+    // testing of move generator
+    // from given position, computes nodes at depth d
+    // return count of nodes
+    // divide outputs nodes under each top level move
+    public static ulong Perft(State state, int depth, bool divide = false)
+    {
+        if (depth == 0)
+            return 1U;
+        ulong nodes = 0;
+
+        var moves = GenMoves(state);
+        Sort(moves);
+        if (depth == 1)
+            return (ulong)moves.Count;
+        foreach (var move in moves)
+        {
+            state.DoMove(move);
+            var count = Perft(state, depth - 1, false);;
+            nodes += count;
+            state.UndoMove();
+            
+            if (divide)
+                Console.WriteLine($"{Square.Name(move.r1,move.c1)}{Square.Name(move.r2,move.c2)}: {count}");
+        }
+        if (divide)
+            Console.WriteLine($"Nodes searched: {nodes}");
+
+        return nodes;
+    }
+
+    // lexi sort moves
+    // todo - add some other options, filter by capture, check, checkmate, promotion, etc
+    public static void Sort(List<Move> moves)
+    {
+        moves.Sort(
+            (a,b)=>
+            {
+                if (a.c1 < b.c1) return -1;
+                if (a.c1 > b.c1) return +1;
+                if (a.r1 < b.r1) return -1;
+                if (a.r1 > b.r1) return +1;
+                if (a.c2 < b.c2) return -1;
+                if (a.c2 > b.c2) return +1;
+                if (a.r2 < b.r2) return -1;
+                if (a.r2 > b.r2) return +1;
+                return 0;
+
+            }
+
+        );
+    }
+
+    /*
+
+depth	nodes	totalnodes
+1	20	20
+2	400	420
+3	8902	9322
+4	197281	206603
+5	4865609	5072212
+6	119060324	124132536
+7	3195901860	3320034396
+
+
+    stockfish: go perft 5
+        a2a3: 181046
+        b2b3: 215255
+        c2c3: 222861
+        d2d3: 328511
+        e2e3: 402988
+        f2f3: 178889
+        g2g3: 217210
+        h2h3: 181044
+        a2a4: 217832
+        b2b4: 216145
+        c2c4: 240082
+        d2d4: 361790
+        e2e4: 405385
+        f2f4: 198473
+        g2g4: 214048
+        h2h4: 218829
+        b1a3: 198572
+        b1c3: 234656
+        g1f3: 233491
+        g1h3: 198502
+    Nodes searched: 4865609    
+    */
 
     // Generate a list of legal moves
     public static List<Move> GenMoves(State state, bool checkTests = true)
@@ -58,7 +150,7 @@ class MoveGen
                         }
                         // en passant captures
                         if (state.enPassantSquare != -1 && epr == row + pawnDir && Math.Abs(epc - col) == 1)
-                            moves.Add(new Move(row, col, row + pawnDir, epc, state[epc, row].piece){enPassantCapture=true});
+                            moves.Add(new Move(row, col, row + pawnDir, epc, state[epc, row].piece) { enPassantCapture = true });
                         break;
 
                     case State.Knight:
@@ -78,7 +170,7 @@ class MoveGen
                         ProcessDirections(state, axis, moves, row, col, targetColor);
                         break;
 
-                    case State.King: 
+                    case State.King:
                         ProcessDirections(state, diag, moves, row, col, targetColor, 1);
                         ProcessDirections(state, axis, moves, row, col, targetColor, 1);
 
@@ -178,16 +270,18 @@ class MoveGen
         var (pr, cr) = state[colRook, row];
         if (pk != State.King || pr != State.Rook || ck != color || cr != color)
             return;
-        // king needs two unoccupied squares
+        // king needs two unoccupied squares on O-O, three on O-O-O
         if (
             state[4 + 1 * dc, row].piece != State.Blank ||
-            state[4 + 2 * dc, row].piece != State.Blank
+            state[4 + 2 * dc, row].piece != State.Blank || 
+            (dc == -1 && state[4 + 3 * dc, row].piece != State.Blank)
         )
             return;
-        // king needs two unattacked squares
+        // king needs two unattacked squares, not in check (todo - in check can be moved higher)
         if (
-            IsAttacked(state, row, colRook + dc * 1, state.EnemyColor) ||
-            IsAttacked(state, row, colRook + dc * 2, state.EnemyColor)
+            IsAttacked(state, row, 4 + dc * 0, state.EnemyColor) ||
+            IsAttacked(state, row, 4 + dc * 1, state.EnemyColor) ||
+            IsAttacked(state, row, 4 + dc * 2, state.EnemyColor)
         )
             return;
         // add castling move
@@ -312,7 +406,7 @@ class MoveGen
             row += dr;
             col += dc;
             dist++;
-            if (!Square.InBounds(row,col))
+            if (!Square.InBounds(row, col))
                 break;
             var (p, c) = state[col, row];
             if (p != State.Blank)

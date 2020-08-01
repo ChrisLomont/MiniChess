@@ -19,10 +19,11 @@ This to test
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 class Testing
 {
-    
+
     // test random games
     public static bool Test1(State state = null)
     {
@@ -67,7 +68,7 @@ class Testing
 
                 var move = moves1[r.Next(moves1.Count)];
 
-                System.Console.WriteLine($"{(moveCount+1)/2}: {move:5}");
+                System.Console.WriteLine($"{(moveCount + 1) / 2}: {move:5}");
 
                 // move do/undo checks
                 var f1 = state.ToFEN();
@@ -99,15 +100,84 @@ class Testing
                 if (mt1 != mt2)
                     return $"Move compare failed \n{mt1} != \n{mt2}\n{f1}==\n{f5}";
 #endif              
-                if (move.checkmate)      
+                if (move.checkmate)
                     Chess.Draw(state);
             }
         }
         return "";
     }
 
+    // test perf counts from various positions
+    public static bool PerfTests()
+    {
+#if false        
+        // for chasing down bugs. Compare to stockfish command line is useful
+        State state2;
+        State.TryParseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", out state2);
+        State.TryParseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/5Q1p/PPPBBPPP/RN2K2R b KQkq - 0 1", out state2);
+        State.TryParseFEN("r3k2r/p1ppqpb1/1n2pnp1/1b1PN3/1p2P3/5Q1p/PPPBBPPP/RN2K2R w KQkq - 0 1", out state2);        
+        //var mm = MoveGen.GenMoves(state2);
+        
+        MoveGen.Perft(state2,2,true);
+        return true;
+#endif
+
+        var regex = new Regex(@"^D(\d+) (\d+)");
+        var (errors, successes) = (0, 0);
+        var filename = "data/perft.txt";
+        foreach (var line1 in File.ReadLines(filename))
+        {
+
+            var line = line1;
+            if (string.IsNullOrEmpty(line))
+                continue;
+            var index = line.IndexOf('#');
+            if (index != -1)
+                line = line.Substring(0, index);
+            if (string.IsNullOrEmpty(line))
+                continue;
+            var words = line.Split(';', Int32.MaxValue, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length > 1 && State.TryParseFEN(words[0], out var state))
+            {
+                for (var i = 1; i < words.Length; ++i)
+                {
+                    var m = regex.Match(words[i].Trim());
+                    if (
+                        m.Success &&
+                        Int32.TryParse(m.Groups[1].Value, out var depth) &&
+                        UInt64.TryParse(m.Groups[2].Value, out var count)
+                        )
+                    {
+
+                        if (depth > 6) break; // todo - allow
+
+
+                        var tested = MoveGen.Perft(state, depth);
+                        if (tested != count)
+                        {
+                            Console.WriteLine($"ERROR: Me {tested} != Truth {count} depth {depth} FEN {words[0]}");
+                            ++errors;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"OK: {tested} == {count} depth {depth} FEN {words[0]}");
+                            ++successes;
+                        }
+                        State.TryParseFEN(words[0], out state);
+                    }
+                }
+            }
+        }
+        Console.WriteLine($"Perft testing {successes} successes, {errors} errors");
+        return errors == 0;
+    }
+
+    // ERROR: 258 != 264 depth 2 FEN r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1
+
+
+
     // testing FEN
-    public static string [] testFEN = {
+    public static string[] testFEN = {
 
     "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", // castling
     "4k3/R6R/8/8/8/8/8/4K3 w - - 0 1", // white about to mate
@@ -132,7 +202,7 @@ class Testing
     {
         foreach (var fen in testFEN)
         {
-            if (State.TryParseFEN(fen,out state))
+            if (State.TryParseFEN(fen, out state))
             {
                 var m = MoveGen.GenMoves(state);
                 Chess.Draw(state);
@@ -157,7 +227,7 @@ class Testing
                 puzzle--;
                 if (puzzle == 0)
                 {
-                    var fen = ln.Substring(6,ln.Length-6-2);
+                    var fen = ln.Substring(6, ln.Length - 6 - 2);
                     State.TryParseFEN(fen, out var s);
                     state = s;
                 }
@@ -165,6 +235,6 @@ class Testing
         }
     }
 
-    
+
 
 }
