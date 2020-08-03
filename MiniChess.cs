@@ -31,6 +31,8 @@ TODO:
 24. *perft
 25. *perft testing
 26. bitboard gen
+27. investigate installing/using self controlled font
+28. fix move output - wrong numbers afer 8 moves
 
 */
 
@@ -277,13 +279,19 @@ class Chess
 
     public static void Draw(State state, bool scroll = true, bool showFen = true)
     {
+        // "♙"♟︎// black symbol pukes on windows for some reason, use u265F
         string[] symb = new[]{
                 " ","♙","♘","♗","♖","♕","♔",
-                " ","♟︎","♞","♝","♜","♛","♚"
+                " ","\u265F","♞","♝","♜","♛","♚"
             };
 
-        int movePos = 0; // start move output here
+            
+
         int maxMove = state.gameMoves.Count;
+        // start move output here
+        var movePos = Math.Max(0,maxMove-16); 
+        movePos += (movePos&1); // make even, round up
+
 
         if (!scroll)
             Console.Clear();
